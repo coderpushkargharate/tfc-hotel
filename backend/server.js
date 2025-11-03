@@ -1,42 +1,37 @@
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
 import nodemailer from "nodemailer";
+import dotenv from "dotenv";
 
 dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// ✅ Enable CORS and JSON body parsing
-app.use(cors({ origin: "*" }));
+// Middlewares
+app.use(cors());
 app.use(express.json());
 
-// ✅ Brevo (Sendinblue) SMTP transporter
+// Nodemailer Transporter
 const transporter = nodemailer.createTransport({
-  host: "smtp-relay.brevo.com",
-  port: 587,
-  secure: false, // STARTTLS
+  service: "gmail",
   auth: {
-    user: process.env.EMAIL_USER, // your Brevo SMTP login (not Gmail)
-    pass: process.env.EMAIL_PASS, // your SMTP key
-  },
-  tls: {
-    rejectUnauthorized: false,
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
   },
 });
 
-/* =============================
+/* =====================================================
    1️⃣ Franchise Form: /api/send-email
-============================= */
+===================================================== */
 app.post("/api/send-email", async (req, res) => {
   const { name, email, contact, area, address, message, budget } = req.body;
 
   const adminMail = {
-    from: `"Traditional Food Company" <${process.env.EMAIL_USER}>`,
-    to: "traditionalfoodcompany01@gmail.com",
+    from: process.env.EMAIL_USER,
+    to: process.env.EMAIL_USER,
     subject: "📩 New Franchise Application Received",
     html: `
-      <h3>New Franchise Application Details:</h3>
+      <h3>New franchise application details:</h3>
       <ul>
         <li><strong>Name:</strong> ${name || "N/A"}</li>
         <li><strong>Email:</strong> ${email || "N/A"}</li>
@@ -49,25 +44,54 @@ app.post("/api/send-email", async (req, res) => {
     `,
   };
 
+  const userMail = {
+    from: process.env.EMAIL_USER,
+    to: email,
+    subject: "✅ Franchise Application Received",
+    html: `
+      <h2>Hello ${name || "User"},</h2>
+      <p>Thank you for showing interest in our franchise program.</p>
+      <p><strong>Your Submitted Details:</strong></p>
+      <ul>
+        <li><strong>Phone:</strong> ${contact || "N/A"}</li>
+        <li><strong>Area:</strong> ${area || "N/A"}</li>
+        <li><strong>Budget:</strong> ${budget || "N/A"}</li>
+      </ul>
+      <p>We will get back to you soon!</p>
+      <br/>
+      <p>Regards,<br/>Franchise Team</p>
+    `,
+  };
+
   try {
     await transporter.sendMail(adminMail);
-    console.log("✅ Franchise mail sent to admin");
+    console.log(`✅ Franchise mail sent to admin: ${process.env.EMAIL_USER}`);
+
+    if (email) {
+      try {
+        await transporter.sendMail(userMail);
+        console.log(`✅ Auto-reply sent to user: ${email}`);
+      } catch (userError) {
+        console.error("⚠️ Failed to send auto-reply to user:", userError.message);
+      }
+    }
+
     res.status(200).json({ message: "Franchise mail sent successfully" });
   } catch (error) {
     console.error("❌ Franchise Mail Error:", error.message);
-    res.status(500).json({ message: "Error sending mail to admin" });
+    res.status(500).json({ message: "Error sending mails. Please try again." });
   }
 });
 
-/* =============================
+/* =====================================================
    2️⃣ Contact Form: /api/contact
-============================= */
+===================================================== */
 app.post("/api/contact", async (req, res) => {
   const { user_name, user_email, user_phone, user_address, reason } = req.body;
 
   const adminMail = {
-    from: `"Traditional Food Company" <${process.env.EMAIL_USER}>`,
-    to: "traditionalfoodcompany01@gmail.com",
+    from: process.env.EMAIL_USER,
+    to: process.env.EMAIL_USER,
     subject: "📩 New Contact Form Submission",
     html: `
       <h3>A new contact form was submitted:</h3>
@@ -81,26 +105,43 @@ app.post("/api/contact", async (req, res) => {
     `,
   };
 
+  const userMail = {
+    from: process.env.EMAIL_USER,
+    to: user_email,
+    subject: "✅ Contact Form Received",
+    html: `
+      <h2>Hello ${user_name || "User"},</h2>
+      <p>Thank you for contacting us.</p>
+      <p><strong>Your Message:</strong> ${reason || "N/A"}</p>
+      <p>We appreciate your time and will get back to you soon!</p>
+      <br/>
+      <p>Regards,<br/>Franchise Team</p>
+    `,
+  };
+
   try {
     await transporter.sendMail(adminMail);
-    console.log("✅ Contact mail sent to admin");
+    console.log(`✅ Contact mail sent to admin: ${process.env.EMAIL_USER}`);
+
+    if (user_email) {
+      try {
+        await transporter.sendMail(userMail);
+        console.log(`✅ Auto-reply sent to user: ${user_email}`);
+      } catch (userError) {
+        console.error("⚠️ Failed to send auto-reply to user:", userError.message);
+      }
+    }
+
     res.status(200).json({ message: "Contact mail sent successfully" });
   } catch (error) {
     console.error("❌ Contact Mail Error:", error.message);
-    res.status(500).json({ message: "Error sending mail to admin" });
+    res.status(500).json({ message: "Error sending mails. Please try again." });
   }
 });
 
-/* =============================
-   Default Route (For Render Health Check)
-============================= */
-app.get("/", (req, res) => {
-  res.send("✅ Traditional Food Company Backend is Running Successfully!");
-});
-
-/* =============================
+/* =====================================================
    Start Server
-============================= */
+===================================================== */
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });

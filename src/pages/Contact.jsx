@@ -28,7 +28,7 @@ const Contact = () => {
 
     try {
       setLoading(true);
-      await axios.post("http://localhost:5000/api/contact", payload);
+      await axios.post("https://tfc-hotel.vercel.app/api/contact", payload);
       alert("Message sent successfully!");
       formRef.current.reset();
     } catch (error) {
